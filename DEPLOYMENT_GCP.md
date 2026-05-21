@@ -1,67 +1,67 @@
-# Guide de déploiement GCP — XSIAM Simulator Template
+# Déploiement GCP — XSIAM Simulator Template
 
-## Avant de déployer
+## Procédure de déploiement
 
-1. **Personnalise `cloudbuild.yaml`** : remplace `MY_SERVICE` par ton nom de service
-2. **Personnalise `deploy-cloudrun.sh`** : mets à jour `SERVICE_NAME`, `REPO_NAME`, et `--set-env-vars`
-3. **Personnalise `deployment/app.yaml`** : mets à jour les variables d'environnement
+### 1. Ouvrir Cloud Shell
 
-## Déploiement rapide
+Dans la [console GCP](https://console.cloud.google.com/), sélectionne ton projet puis clique sur l'icône **Cloud Shell** en haut à droite.
+
+### 2. Cloner le projet
 
 ```bash
-gcloud auth login
-gcloud config set project VOTRE_PROJECT_ID
+# TODO: remplacer par l'URL de ton repo
+git clone https://github.com/JCourtemanche/mon-nouveau-simul
+```
 
+### 3. Se déplacer dans le répertoire
+
+```bash
+cd mon-nouveau-simul
+```
+
+### 4. Lancer le déploiement
+
+```bash
 bash deploy-cloudrun.sh
 ```
 
-## Étapes manuelles
+Le script gère automatiquement :
+- Activation des APIs GCP nécessaires
+- Création du repository Artifact Registry
+- Build de l'image Docker via Cloud Build
+- Déploiement sur Cloud Run
 
-### 1. Activer les APIs
+À la fin, l'URL du service est affichée.
 
-```bash
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
-  artifactregistry.googleapis.com
-```
+### 5. Autoriser l'accès public
 
-### 2. Créer le repository Artifact Registry
+Dans la [console Cloud Run](https://console.cloud.google.com/run), ouvre ton service, va dans l'onglet **Sécurité** et vérifie que **Authentification** est réglé sur **Autoriser l'accès non authentifié**.
 
-```bash
-gcloud artifacts repositories create MY_SERVICE \
-  --repository-format=docker \
-  --location=europe-west1
-```
+> Si cette option est grisée, une policy d'organisation GCP bloque l'accès public.  
+> Contacte ton admin GCP pour qu'il autorise `constraints/iam.allowedPolicyMemberDomains` sur ce projet.
 
-### 3. Build et push
-
-```bash
-gcloud builds submit --config cloudbuild.yaml
-```
-
-### 4. Déployer
-
-```bash
-IMAGE="europe-west1-docker.pkg.dev/$(gcloud config get-value project)/MY_SERVICE/MY_SERVICE:latest"
-
-gcloud run deploy MY_SERVICE \
-  --image $IMAGE \
-  --platform managed \
-  --region europe-west1 \
-  --allow-unauthenticated \
-  --memory 512Mi \
-  --set-env-vars AUTH_API_KEY=change-me,DEBUG=False
-```
+---
 
 ## Validation
 
 ```bash
-SERVICE_URL=$(gcloud run services describe MY_SERVICE \
-  --region europe-west1 --format 'value(status.url)')
+SERVICE_URL="https://mon-service-XXXX-ew.a.run.app"  # URL affichée à l'étape 4
 
+# Health check (fonctionne sans authentification)
 curl $SERVICE_URL/health
+
+# TODO: ajouter les commandes de test spécifiques à ton API
 ```
 
-## Notes
+## Commandes utiles
 
-- Le package `xsiam-shared-personas` est installé depuis GitHub pendant le build Docker — git est installé dans l'image pour cette raison
-- `--min-instances 0` active le scale-to-zero pour réduire les coûts
+```bash
+# Voir les logs
+gcloud run services logs read MON_SERVICE --region europe-west1
+
+# Redéployer après une mise à jour du code
+git pull && bash deploy-cloudrun.sh
+
+# Supprimer le service
+gcloud run services delete MON_SERVICE --region europe-west1
+```
