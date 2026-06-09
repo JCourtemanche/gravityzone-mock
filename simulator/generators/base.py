@@ -72,10 +72,3 @@ def random_malicious_url():
     return random.choice(MALICIOUS_URLS)
 
 
-# ---------------------------------------------------------------------------
-# TODO: add integration-specific helpers here
-# ---------------------------------------------------------------------------
-# Example:
-#
-# def my_custom_id():
-#     return str(random.randint(100000000, 999999999))

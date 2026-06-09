@@ -1,10 +1,9 @@
-# TODO: update runtime if needed
 runtime: python311
 entrypoint: gunicorn -b :$PORT -w 4 --timeout 120 app:app
 
 env_variables:
-  # TODO: replace with your auth scheme variables
-  AUTH_API_KEY: "change-me"
-  # AUTH_USERNAME: "test-user"
-  # AUTH_PASSWORD: "test-secret"
+  COMPANY_ID: "gz-company-001"
+  COMPANY_NAME: "Business Corp"
+  NUM_ENDPOINTS: "8"
+  NUM_INCIDENTS: "25"
   DEBUG: "False"

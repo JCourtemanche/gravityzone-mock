@@ -1,12 +1,8 @@
-"""
-TODO: Update service name throughout this file.
-"""
 import logging
 from flask import Flask, jsonify
 from config import Config
-
-# TODO: import your blueprints (remove the example import when you replace it)
-from routes.example import example_bp
+from routes.jsonrpc import jsonrpc_bp
+from routes.storage import storage_bp
 
 
 def create_app():
@@ -17,30 +13,34 @@ def create_app():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     )
     logger = logging.getLogger(__name__)
+    logger.info("Starting Bitdefender GravityZone XSIAM Mock Server")
 
-    # TODO: update service name
-    logger.info("Starting XSIAM Simulator")
-
-    # TODO: register your blueprints here
-    app.register_blueprint(example_bp)
+    app.register_blueprint(jsonrpc_bp)
+    app.register_blueprint(storage_bp)
 
     @app.route('/health', methods=['GET'])
     def health():
         return jsonify({
             'status': 'healthy',
-            # TODO: update service name
-            'service': 'XSIAM Simulator',
+            'service': 'gravityzone-mock',
             'version': '1.0.0',
         }), 200
 
     @app.route('/', methods=['GET'])
     def root():
         return jsonify({
-            # TODO: update service name and list real endpoints
-            'service': 'XSIAM Simulator',
+            'service': 'Bitdefender GravityZone XSIAM Mock Server',
             'version': '1.0.0',
+            'protocol': 'JSON-RPC 2.0',
+            'auth': 'HTTP Basic Auth (username=api_key, password=empty)',
             'endpoints': {
-                'GET /api/v1/records': 'Example endpoint — replace with real ones',
+                'POST /api/<version>/jsonrpc/companies': 'getCompanyDetails',
+                'POST /api/<version>/jsonrpc/network': 'getEndpointsList | getManagedEndpointDetails | getTaskStatus',
+                'POST /api/<version>/jsonrpc/incidents': 'getIncidentsList | getIncident | updateIncidentNote | changeIncidentStatus | createIsolateEndpointTask | createRestoreEndpointFromIsolationTask',
+                'POST /api/<version>/jsonrpc/investigation': 'startRetrieveInvestigationFileFromEndpoint | startCommandExecutionOnEndpoint | killProcess | collectInvestigationPackage | getInvestigationFileUrl',
+                'POST /api/<version>/jsonrpc/internal': 'runPredefinedLiveSearchQuery | getLiveSearchQueryTaskResult',
+                'POST /storage/<bucket>': 'Upload investigation file',
+                'GET /storage/<bucket>/<filename>': 'Download investigation file',
                 'GET /health': 'Health check',
             },
         }), 200
