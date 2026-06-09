@@ -59,17 +59,23 @@ def handle_get_company_details(params):
 def handle_get_endpoints_list(params):
     endpoints = get_endpoints()
     page = max(1, int(params.get('page', 1)))
-    per_page = min(500, max(1, int(params.get('perPage', 100))))
+    # Official API: default 30, max 100
+    per_page = min(100, max(1, int(params.get('perPage', 30))))
 
     start = (page - 1) * per_page
     items = endpoints[start:start + per_page]
 
-    public_fields = {'id', 'name', 'ip', 'macs', 'operatingSystemVersion', 'state', 'lastSeen'}
+    # Official getEndpointsList fields (per bitdefender.com/business/support/en/77212-128483)
+    public_fields = {
+        'id', 'name', 'label', 'fqdn', 'groupId', 'isManaged',
+        'operatingSystem', 'ip', 'macs', 'ssid', 'productOutdated', 'lastSuccessfulScan',
+    }
     return {
         'items': [{k: v for k, v in ep.items() if k in public_fields} for ep in items],
         'total': len(endpoints),
-        'pagesCount': max(1, (len(endpoints) + per_page - 1) // per_page),
         'page': page,
+        'perPage': per_page,
+        'pagesCount': max(1, (len(endpoints) + per_page - 1) // per_page),
     }
 
 
@@ -78,36 +84,81 @@ def handle_get_managed_endpoint_details(params):
     ep = get_endpoint_by_id(endpoint_id) or get_endpoints()[0]
     options = params.get('options', {})
 
+    product_version = ep.get('_productVersion', '7.9.10.1234')
+    # Official spec: lastSeen and agent.lastUpdate have NO timezone offset
     result = {
         'id': ep['id'],
         'name': ep['name'],
+        'label': ep.get('label', ''),
+        'companyId': ep.get('_companyId', 'gz-company-001'),
+        'operatingSystem': ep.get('operatingSystem', ep['name']),
+        'state': ep.get('_state', 1),
         'ip': ep['ip'],
-        'fqdn': ep.get('fqdn', f"{ep['name']}.businesscorp.local"),
-        'operatingSystemVersion': ep['operatingSystemVersion'],
         'macs': ep['macs'],
-        'state': ep['state'],
-        'companyId': ep['companyId'],
-        'isManaged': True,
-        'productVersion': ep.get('productVersion', '7.9.10.1234'),
-        'lastSeen': ep.get('lastSeen', '2026-06-09T12:00:00+00:00'),
-        'machineType': 1,
+        'lastSeen': ep.get('_lastSeen', '2026-06-09T12:00:00'),  # no TZ offset
+        'machineType': ep.get('_machineType', 1),
+        'group': {
+            'id': ep.get('_groupId', ep.get('groupId', '')),
+            'name': ep.get('_groupName', 'Managed Endpoints'),
+        },
+        'agent': {
+            'productVersion': product_version,
+            'engineVersion': '7.93650',
+            'primaryEngine': 3,    # 3=Local/Full
+            'fallbackEngine': 2,   # 2=Hybrid/Light
+            'lastUpdate': ep.get('_agent_lastUpdate', '2026-06-09T08:30:00'),  # no TZ offset
+            'licensed': 1,         # 1=active
+            'productOutdated': ep.get('_productOutdated', False),
+            'productUpdateDisabled': False,
+            'signatureOutdated': False,
+            'signatureUpdateDisabled': False,
+            'type': 1,             # 1=Endpoint Security
+        },
+        'malwareStatus': {
+            'detection': False,
+            'infected': False,
+        },
+        'policy': {
+            'id': 'pol-default-001',
+            'name': 'Default policy',
+            'applied': True,
+        },
         'modules': {
             'antimalware': True,
             'firewall': True,
             'contentControl': True,
+            'deviceControl': False,
             'advancedThreatControl': True,
-            'edr': True,
+            'powerUser': False,
+            'encryption': False,
+            'edrSensor': True,      # correct field name per API spec
+            'hyperDetect': True,
+            'patchManagement': False,
+            'relay': False,
+            'sandboxAnalyzer': False,
+            'exchange': False,
+            'advancedAntiExploit': True,
+            'containerProtection': False,
+            'networkAttackDefense': True,
         },
     }
     if options.get('includeScanLogs'):
         result['scanLogs'] = [
-            {'type': 2, 'status': 1, 'startDate': '2026-06-09T06:00:00+00:00', 'endDate': '2026-06-09T06:15:00+00:00', 'threatsFound': 0}
+            {
+                'type': 2, 'status': 1,
+                'startDate': '2026-06-09T06:00:00',
+                'endDate': '2026-06-09T06:15:00',
+                'threatsFound': 0,
+            }
         ]
     if options.get('returnProductOutdated'):
-        result['productOutdated'] = False
+        result['productOutdated'] = ep.get('_productOutdated', False)
     if options.get('includeLastLoggedUsers'):
         result['lastLoggedUsers'] = [
-            {'userName': f"BUSINESSCORP\\{ep['name'].lower()}", 'loginDate': '2026-06-09T08:00:00+00:00'}
+            {
+                'userName': f"BUSINESSCORP\\{ep['name'].lower()}",
+                'loginDate': '2026-06-09T08:00:00',  # no TZ offset
+            }
         ]
     return result
 
