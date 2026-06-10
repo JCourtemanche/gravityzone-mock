@@ -67,7 +67,7 @@ gcloud run deploy $SERVICE_NAME \
   --timeout 300 \
   --min-instances 0 \
   --max-instances 2 \
-  --set-env-vars COMPANY_ID=gz-company-001,COMPANY_NAME=Business Corp,NUM_ENDPOINTS=8,NUM_INCIDENTS=25,DEBUG=False
+  --set-env-vars="COMPANY_ID=gz-company-001,COMPANY_NAME=Business Corp,NUM_ENDPOINTS=8,NUM_INCIDENTS=25,DEBUG=False"
 
 echo -e "${YELLOW}[6/6] Configuration de l'accès public...${NC}"
 gcloud run services add-iam-policy-binding $SERVICE_NAME \
