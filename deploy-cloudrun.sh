@@ -1,5 +1,5 @@
 #!/bin/bash
-# Déploie le mock server GravityZone sur Cloud Run.
+# Déploie le mock server GravityZone sur Cloud Run avec gestion IAM.
 # Usage: bash deploy-cloudrun.sh
 
 set -e
@@ -10,15 +10,32 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 PROJECT_ID=$(gcloud config get-value project 2>/dev/null)
+# Récupère le compte actuellement authentifié (ton adresse email)
+CURRENT_USER=$(gcloud config get-value account 2>/dev/null)
 REGION="europe-west1"
 SERVICE_NAME="gravityzone-mock"
 REPO_NAME="gravityzone-mock"
 
 echo -e "${GREEN}=== Déploiement Cloud Run - $SERVICE_NAME ===${NC}\n"
 echo -e "${YELLOW}Project:${NC} $PROJECT_ID"
+echo -e "${YELLOW}User:${NC}    $CURRENT_USER"
 echo -e "${YELLOW}Region:${NC}  $REGION"
 echo -e "${YELLOW}Service:${NC} $SERVICE_NAME"
 echo ""
+
+echo -e "${YELLOW}[0/6] Configuration des permissions IAM pour $CURRENT_USER...${NC}"
+# Ajout des rôles requis pour le déploiement
+for ROLE in "roles/cloudbuild.builds.editor" "roles/storage.objectAdmin" "roles/run.admin" "roles/iam.serviceAccountUser"; do
+  gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="user:$CURRENT_USER" \
+    --role="$ROLE" \
+    --condition=None \
+    --quiet > /dev/null
+done
+echo -e "${GREEN}✓ Permissions IAM appliquées (la propagation peut prendre 1 à 2 minutes)${NC}\n"
+
+# Petite pause pour laisser le temps aux permissions GCP de se propager
+sleep 10
 
 echo -e "${YELLOW}[1/6] Activation des APIs...${NC}"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
@@ -87,19 +104,4 @@ echo -e "${GREEN}✓ Déploiement réussi !${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "${YELLOW}URL du service:${NC} ${GREEN}${SERVICE_URL}${NC}"
-echo ""
-echo -e "${YELLOW}Tests de validation (remplacer SERVER_URL):${NC}"
-echo ""
-echo "  # Health check"
-echo "  curl ${SERVICE_URL}/health"
-echo ""
-echo "  # Obtenir la liste des incidents (Basic Auth : api_key comme username)"
-echo "  curl -s -u 'MY_API_KEY:' -X POST \\"
-echo "    -H 'Content-Type: application/json' \\"
-echo "    -d '{\"jsonrpc\":\"2.0\",\"method\":\"getIncidentsList\",\"params\":{\"page\":1,\"perPage\":5},\"id\":1}' \\"
-echo "    ${SERVICE_URL}/api/v1.2/jsonrpc/incidents | python3 -m json.tool | head -40"
-echo ""
-echo -e "${YELLOW}Commandes utiles:${NC}"
-echo "  Voir les logs:  gcloud run services logs read $SERVICE_NAME --region $REGION"
-echo "  Supprimer:      gcloud run services delete $SERVICE_NAME --region $REGION"
 echo ""
